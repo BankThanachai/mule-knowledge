@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+    
+    <configuration-properties file="ports.properties"/>
+    
+    <http:listener-config name="myfirstownedspecification-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="myfirstownedspecification-config" api="myfirstownedspecification.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <db:config name="Database_Config" doc:name="Database Config" doc:id="86968bcc-6022-4926-837b-c5c5b5aaf1e2" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" database="test_mulesoft" />
+	</db:config>
+	<global-property doc:name="Global Property" doc:id="8f1361de-73dc-4edd-b3c0-0661f2e86d90" name="url" value="www.facebook.com" />
+	<global-property doc:name="Global Property" doc:id="a52ad306-58a6-4981-9bf3-45c3383f19aa" name="url2" value="www.japan.com" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="4a4666d8-d437-4b38-bc57-db9e5bfc5a3c" file="ports.properties" key="${key}">
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<global-property doc:name="Global Property" doc:id="25f9a2a4-302f-4a9b-8396-82a3fae2962e" name="key" value="password" />
+	<flow name="myfirstownedspecification-main">
+        <http:listener config-ref="myfirstownedspecification-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="myfirstownedspecification-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST" enableNotifications="true" logException="true">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="b3d74466-de12-4702-a6b4-4c82788ca368">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="myfirstownedspecification-console">
+        <http:listener config-ref="myfirstownedspecification-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="myfirstownedspecification-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\test\connection:myfirstownedspecification-config">
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="00974167-4cdf-4852-80c2-05f0ecb9b331">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  coord: {
+    lon: -0.13,
+    lat: 51.51
+  },
+  weatherLocation: {
+    id: 804,
+    main: "Clouds",
+    description: "overcast clouds",
+    icon: "04n"
+  },
+  base: "stations"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<logger level="INFO" doc:name="Copy_of_Logger1" doc:id="358e225e-04e5-4478-9a23-4b27b5d6a42f" message="#[attributes.uriParams.'locationName']" />
+		<http:request method="GET" doc:name="Copy_of_Rapid API Weather" doc:id="4f700e53-057e-4635-b842-0749416375bc" url="https://community-open-weather-map.p.rapidapi.com/weather" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"X-RapidAPI-Host" : "community-open-weather-map.p.rapidapi.com",
+	"X-RapidAPI-Key" : "b7ab955e18msh4b827fd45b138d1p1c23f3jsnd986e08d8f8a"
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+
+var locationName = attributes.uriParams.'locationName'
+---
+{
+	 "q" : attributes.uriParams.'locationName'
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="Copy_of_Logger2" doc:id="447f7cd3-6e12-404a-b5f8-f5b7877c4753" message="This is my payload #[payload]" />
+		<db:select doc:name="Select" doc:id="668b8b5b-b1cc-4ded-a51f-a3a48c3bf7b9" config-ref="Database_Config">
+			<db:sql >SELECT fr.rfam_acc, fr.rfamseq_acc, fr.seq_start, fr.seq_end
+FROM full_region fr, rfamseq rf, taxonomy tx
+WHERE rf.ncbi_id = tx.ncbi_id
+AND fr.rfamseq_acc = rf.rfamseq_acc
+AND tx.ncbi_id = 10116 -- NCBI taxonomy id of Rattus norvegicus
+AND is_significant = 1 -- exclude low-scoring matches from the same clan</db:sql>
+		</db:select>
+    </flow>
+    <flow name="get:\forecast\(locationName):myfirstownedspecification-config">
+		<db:select doc:name="Copy_of_Select" doc:id="4e69a16c-ac68-4dd8-98e7-e0118f1d1df2" config-ref="Database_Config">
+			<db:sql >SELECT * FROM customer</db:sql>
+			<db:parameter-types />
+		</db:select>
+		<logger level="INFO" doc:name="Logger" message="This is port from global properties ${http.port}, ${url}, ${test_vm_property}, ${url2}" doc:id="05387a2f-b1dc-4431-99eb-378ae75582c6" />
+		<logger level="INFO" doc:name="Environment Value" doc:id="b2d18f5e-a99e-45a3-b975-86cd19f27465" message="${EVN_VAR_TEST} -" />
+		<logger level="INFO" doc:name="Security" doc:id="47c40f96-29ce-4f0e-8be2-4b1d34833c58" message="${secret}, ${secure::secret}, ${url}, ${secure::url}" />
+		<ee:transform doc:name="Transform Message" doc:id="3aaecfd6-1b7a-4850-89b2-4da90a845568" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+
+output application/json
+---
+
+payload map (item, index) -> {
+	"id": item.id,
+	"detail": "Name: " ++ item.name
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+		</error-handler>
+    </flow>
+</mule>

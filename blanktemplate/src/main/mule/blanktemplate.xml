@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" >
+  <http:listener-connection host="0.0.0.0" port="8081" />
+</http:listener-config>
+<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" >
+  <http:request-connection host="json.typicode.com/" port="80" />
+</http:request-config>
+
+<configuration doc:name="Configuration" doc:id="dbf8910c-90f7-4972-937b-0bcd88629dc1" defaultErrorHandler-ref="allErrorHandler" />
+	<flow name="someFlow">
+  <http:listener doc:name="Listener" config-ref="HTTP_Listener_config" path="/users"/>
+		<try doc:name="Try" doc:id="bc1bcc9c-261c-4fb1-96af-9ed674903754" >
+			<http:request method="GET" doc:name="Request" config-ref="HTTP_Request_configuration" path="/somebadrequest" />
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="b0909d86-0bb0-4bea-9657-e55ede0f9b33" type="HTTP:NOT_FOUND">
+					<logger level="INFO" doc:name="Logger" doc:id="556167eb-150c-4241-af29-51ea27adefeb" message="Try Catch Error Propagate"/>
+				</on-error-propagate>
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="684cc77e-89be-4e6a-b9f9-fc6cdef881b8" type="ANY">
+					<logger level="INFO" doc:name="Logger" doc:id="0b36c2be-0979-4368-a05f-70f386b4cc55" message="Try Catch Error Contnue"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="Logger" doc:id="867537b9-292c-4eba-b14e-812fd60c4c5e" message="pass"/>
+		
+		<!-- Custom Error Handling -->
+		<http:request method="GET" doc:name="Request API_1" doc:id="01432590-2600-448e-9ce8-958101b15f6a" config-ref="HTTP_Request_configuration" path="/somebadrequestx">
+			<error-mapping targetType="APP:API_1" />
+		</http:request>
+		<http:request method="GET" doc:name="Request API_2" doc:id="4185a0b3-92ac-409e-bd5d-08fc0ab7187b" config-ref="HTTP_Request_configuration" path="/somebadrequestx" >
+			<error-mapping targetType="APP:API_2" />
+		</http:request>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="bb6cd721-97a7-4730-996e-a5b36d7d72b5" type="APP:API_1">
+				<logger level="INFO" doc:name="Logger" doc:id="7a84628c-3603-4687-874a-1de30610ecb3" message="APP_1 Error"/>
+			</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="1e76756b-aa8c-4088-bdd4-777f577fa436" type="APP:API_2">
+				<logger level="INFO" doc:name="Logger" doc:id="be6d016f-e60b-4dbe-81f7-4776020baf34" message="APP_2 Error"/>
+			</on-error-continue>
+		</error-handler>
+</flow>
+
+<!-- error can be put outside flow -->
+<!-- match type any with match with any type of error. What happens if it's blank? -->
+<on-error-continue name="loggingErrorHandler" enableNotifications="true" logException="true" type="ANY">
+    <logger message="#['>>>>>>>>>>>>>>>>> Error: ' ++ error.description]" level="INFO"/>
+</on-error-continue>
+
+<flow name="withSharedHandler">
+  <http:listener doc:name="Listener" config-ref="HTTP_Listener_config" path="/"/>
+  <http:request url="http://jsonplaceholder.typicode.com/badrequestbad" method="GET"/>
+  
+  <!-- call error outside flow -->
+  <error-handler >
+    <on-error ref="loggingErrorHandler"/>
+  </error-handler>
+</flow>
+
+<!-- for custom error -->
+<!-- 
+<flow name="retrieveMatchingOrders">
+  <http:request config-ref="customersConfig" path="/customer">
+    <error-mapping sourceType="CONNECTIVITY" targetType="APP:CUSTOMER_API"/>
+  </http:request>
+  <http:request config-ref="ordersConfig" path="/order">
+    <error-mapping sourceType="CONNECTIVITY" targetType="APP:ORDER_API"/>
+  </http:request>
+  <error-handler>
+    <on-error-continue type="APP:CUSTOMER_API">
+      <logger message="#['Could not retrieve customer data.']"/>
+    </on-error-continue>
+    <on-error-continue type="APP:ORDER_API">
+      <logger message="#['Could not retrieve customer order data.']"/>
+    </on-error-continue>
+  </error-handler>
+</flow>
+ -->
+ 
+<!-- this can be used as Global Error in Global Element -->
+<error-handler name="allErrorHandler" >
+	<on-error-continue name="loggingErrorHandler2" enableNotifications="true" logException="true" doc:name="On Error Continue" >
+	    <set-payload value="#[error.description]" doc:name="Set Payload" />
+		<logger level="INFO" doc:name="Logger" doc:id="2a402c47-cb70-4b4f-9fb3-95b733c1246e" message="this is error payload #[payload]"/>
+	</on-error-continue>
+</error-handler>
+	<flow name="blanktemplateFlow" doc:id="d840b727-1a69-4e03-a7ea-0ec5e4438f77" >
+		<http:listener doc:name="Listener" doc:id="575769d2-bf78-4378-8f95-7dfa2977ca35" config-ref="HTTP_Listener_config" path="/test/"/>
+		<http:request method="GET" doc:name="Copy_of_Request" doc:id="f0ada256-3eaf-4d9b-8027-77ab2d9d8b86" url="http://jsonplaceholder.typicode.com/badrequestbad" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f41c4705-e4b5-45c7-9a5a-781701b9eab8" type="ANY">
+				<logger level="INFO" doc:name="Logger" doc:id="8b742bb7-2c86-4782-9348-7eabebf2e8a9" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+</mule>
+
+<!-- 
+An on-error-continue
+-executes and uses the result of the execution as the result of its owner (as though the owner completed the execution successfully). Any transactions at this point are committed, as well.
+
+An on-error-propagate
+- rolls back any transactions, executes, and uses that result to re-throw the existing error, meaning its owner is considered to be “failing.”
+ -->

@@ -1,0 +1,54 @@
+#%RAML 1.0
+title: MyFirstOwnedSpecification
+version: v1.0
+baseUri: https://anypoint.mulesoft.com/mocking/api/v1/links/2e5c0e47-0a39-4e79-8bd4-9f06b21a0a81/myapi # baseUri: http://quick-start-store.us-w1.cloudhub.io/myapi
+
+securitySchemes:
+  basic:
+    description: |
+      Description can be anything. This is for basic authentication
+    type: Basic Authentication
+
+# is 'basic' taken from parameter above?
+securedBy: [basic]
+
+# declare data type
+types:
+  weather:
+      properties:
+        coord: coord
+        weatherLocation: weatherLocation
+        base: string
+
+  coord:
+    properties:
+      lon: number
+      lat: number
+  
+  weatherLocation:
+    properties:  
+      id: number
+      main: string
+      description: string
+      icon: string
+
+/forecast:
+  /{locationName}:
+      uriParameters:
+        locationName: string
+      get:
+        responses: 
+          200:
+            body:
+              application/json:
+                type: weather
+                examples: !include weather_example.raml
+          404:
+            body: 
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message" : "Weather not found"
+                  }
